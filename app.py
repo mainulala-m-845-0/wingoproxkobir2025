@@ -2,19 +2,53 @@ import requests
 import pandas as pd
 from collections import Counter
 from flask import Flask, render_template, jsonify, request
-import logging, json
+import logging, json, sqlite3
+from datetime import datetime
 
 # ==============================
 # CONFIG
 # ==============================
 URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 PAGE_SIZE = 20
+DB_FILE = "results.db"
 
 app = Flask(__name__)
-
-# Enable logging to console
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("wingo")
+
+# ==============================
+# INIT DATABASE
+# ==============================
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS predictions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        issue TEXT,
+        number INTEGER,
+        bigsmall TEXT,
+        color TEXT,
+        prediction TEXT,
+        strategy TEXT,
+        outcome TEXT,
+        timestamp TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def save_prediction(issue, number, bigsmall, color, prediction, strategy, outcome):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+    INSERT INTO predictions(issue, number, bigsmall, color, prediction, strategy, outcome, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (issue, number, bigsmall, color, prediction, strategy, outcome, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
 
 # ==============================
 # Predictor Logic
@@ -30,7 +64,6 @@ class WinGoPredictor:
         self.strategy = "Follow-Trend"
 
     def fetch_data(self):
-        """Fetch live WinGo game data from API"""
         try:
             params = {"pageNo": 1, "pageSize": PAGE_SIZE}
             headers = {"User-Agent": "Mozilla/5.0 (WinGoPredict/1.0)"}
@@ -48,20 +81,17 @@ class WinGoPredictor:
                 "Color": str(d["color"]),
                 "BigSmall": "Big" if int(d["number"]) >= 5 else "Small"
             } for d in data["data"]["list"]])
-
         except Exception as e:
             logger.error("❌ Error fetching API: %s", e)
             return pd.DataFrame([])
 
     def analyze(self, df):
-        """Find Hot & Cold numbers by frequency"""
         freq = Counter(df["Number"])
         hot = [int(num) for num, _ in freq.most_common(3)]
         cold = [int(num) for num, _ in freq.most_common()[-3:]]
         return hot, cold
 
     def follow_trend(self, df):
-        """Follow-trend logic for prediction"""
         last = df["BigSmall"].values[:10]
         big_count = list(last).count("Big")
         small_count = list(last).count("Small")
@@ -72,7 +102,6 @@ class WinGoPredictor:
         return "Big" if big_count > small_count else "Small"
 
     def evaluate(self, df):
-        """Evaluate last draw and update prediction"""
         if df.empty:
             return "-----", "-", "-", "-", "No Data"
 
@@ -105,6 +134,9 @@ class WinGoPredictor:
                 self.current_prediction = base
                 self.strategy = "Follow-Trend"
 
+            save_prediction(latest_issue, number, result, color,
+                            self.current_prediction, self.strategy, outcome)
+
         return latest_issue[-5:], number, result, color, outcome
 
 predictor = WinGoPredictor()
@@ -112,18 +144,6 @@ predictor = WinGoPredictor()
 # ==============================
 # Routes
 # ==============================
-@app.before_request
-def log_request_info():
-    logger.info("➡️ Request: %s %s", request.method, request.path)
-
-@app.after_request
-def log_response_info(response):
-    try:
-        logger.info("⬅️ Response status: %s", response.status)
-    except Exception:
-        pass
-    return response
-
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -138,11 +158,9 @@ def data():
     issue, number, result, color, outcome = predictor.evaluate(df)
     acc = (predictor.total_wins / predictor.total_predictions * 100) if predictor.total_predictions > 0 else 0
 
-    # Ensure JSON-serializable types
     hot = [int(x) for x in hot]
     cold = [int(x) for x in cold]
     last10 = df.head(10).to_dict(orient="records")
-    # Normalize rows
     for row in last10:
         row["Issue"] = str(row["Issue"])
         row["Number"] = int(row["Number"])
@@ -166,8 +184,28 @@ def data():
         "last10": last10
     }
 
-    logger.info("✅ Payload ready: %s", json.dumps(payload, indent=2))
+    logger.info("✅ Payload: %s", json.dumps(payload, indent=2))
     return jsonify(payload)
+
+@app.route("/history")
+def history_api():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 100")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+@app.route("/history/view")
+def history_view():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 100")
+    rows = cur.fetchall()
+    conn.close()
+    return render_template("history.html", rows=rows)
 
 # ==============================
 if __name__ == "__main__":
