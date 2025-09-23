@@ -1,8 +1,8 @@
 import requests
 import pandas as pd
 from collections import Counter
-from flask import Flask, render_template, jsonify, request
-import logging, json, sqlite3
+from flask import Flask, render_template, jsonify, send_file
+import logging, sqlite3, csv, os
 from datetime import datetime
 
 # ==============================
@@ -13,11 +13,12 @@ PAGE_SIZE = 20
 DB_FILE = "results.db"
 
 app = Flask(__name__)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("wingo")
 
 # ==============================
-# INIT DATABASE
+# INIT DB
 # ==============================
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -66,7 +67,7 @@ class WinGoPredictor:
     def fetch_data(self):
         try:
             params = {"pageNo": 1, "pageSize": PAGE_SIZE}
-            headers = {"User-Agent": "Mozilla/5.0 (WinGoPredict/1.0)"}
+            headers = {"User-Agent": "Mozilla/5.0 WingPredictor/1.0"}
             resp = requests.get(URL, params=params, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
@@ -88,8 +89,7 @@ class WinGoPredictor:
     def analyze(self, df):
         freq = Counter(df["Number"])
         hot = [int(num) for num, _ in freq.most_common(3)]
-        cold = [int(num) for num, _ in freq.most_common()[-3:]]
-        return hot, cold
+        return hot
 
     def follow_trend(self, df):
         last = df["BigSmall"].values[:10]
@@ -103,7 +103,7 @@ class WinGoPredictor:
 
     def evaluate(self, df):
         if df.empty:
-            return "-----", "-", "-", "-", "No Data"
+            return "-----", "-", "-", "-", "No Data", []
 
         latest_issue = str(df.iloc[0]["Issue"])
         result = str(df.iloc[0]["BigSmall"])
@@ -134,10 +134,21 @@ class WinGoPredictor:
                 self.current_prediction = base
                 self.strategy = "Follow-Trend"
 
-            save_prediction(latest_issue, number, result, color,
-                            self.current_prediction, self.strategy, outcome)
+            hot = self.analyze(df)
+            twoNums = ", ".join(map(str, hot[:2])) if hot else str(number)
 
-        return latest_issue[-5:], number, result, color, outcome
+            save_prediction(
+                latest_issue,
+                number,
+                result,
+                color,
+                f"{self.current_prediction} ({twoNums})",
+                self.strategy,
+                outcome
+            )
+
+        hot = self.analyze(df)
+        return latest_issue[-5:], number, result, color, outcome, hot
 
 predictor = WinGoPredictor()
 
@@ -154,48 +165,22 @@ def data():
     if df.empty:
         return jsonify({"error": "No data fetched from API"}), 500
 
-    hot, cold = predictor.analyze(df)
-    issue, number, result, color, outcome = predictor.evaluate(df)
+    issue, number, result, color, outcome, hot = predictor.evaluate(df)
     acc = (predictor.total_wins / predictor.total_predictions * 100) if predictor.total_predictions > 0 else 0
 
-    hot = [int(x) for x in hot]
-    cold = [int(x) for x in cold]
-    last10 = df.head(10).to_dict(orient="records")
-    for row in last10:
-        row["Issue"] = str(row["Issue"])
-        row["Number"] = int(row["Number"])
-        row["BigSmall"] = str(row["BigSmall"])
-        row["Color"] = str(row["Color"])
-
-    payload = {
+    return jsonify({
         "issue": str(issue),
-        "number": int(number) if isinstance(number, (int, float)) else str(number),
+        "number": int(number),
         "result": str(result),
         "color": str(color),
         "prediction": str(predictor.current_prediction),
-        "strategy": str(predictor.strategy),
         "outcome": str(outcome),
         "wins": int(predictor.total_wins),
         "losses": int(predictor.total_losses),
         "total": int(predictor.total_predictions),
         "accuracy": round(float(acc), 1),
-        "hot": hot,
-        "cold": cold,
-        "last10": last10
-    }
-
-    logger.info("✅ Payload: %s", json.dumps(payload, indent=2))
-    return jsonify(payload)
-
-@app.route("/history")
-def history_api():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 100")
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
+        "hot": hot
+    })
 
 @app.route("/history/view")
 def history_view():
@@ -204,8 +189,34 @@ def history_view():
     cur = conn.cursor()
     cur.execute("SELECT * FROM predictions ORDER BY id DESC LIMIT 100")
     rows = cur.fetchall()
+
+    cur.execute("SELECT COUNT(*) FROM predictions WHERE outcome LIKE 'WIN%'")
+    wins = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM predictions WHERE outcome LIKE 'LOSS%'")
+    losses = cur.fetchone()[0]
+
+    total = wins + losses
+    accuracy = round((wins / total) * 100, 1) if total > 0 else 0
+
     conn.close()
-    return render_template("history.html", rows=rows)
+    return render_template("history.html", rows=rows, wins=wins, losses=losses, accuracy=accuracy)
+
+# ✅ CSV Export Route
+@app.route("/history/export")
+def history_export():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM predictions ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+
+    filename = "prediction_history.csv"
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([d[0] for d in cur.description])  # headers
+        writer.writerows(rows)
+
+    return send_file(filename, mimetype="text/csv", as_attachment=True)
 
 # ==============================
 if __name__ == "__main__":
