@@ -32,26 +32,33 @@
 
   <script>
     async function refreshData(){
-      let res = await fetch("/data");
-      let d = await res.json();
-      document.getElementById("issue").innerText = d.issue;
-      document.getElementById("number").innerText = d.number;
-      document.getElementById("result").innerText = d.result;
-      document.getElementById("color").innerText = d.color;
-      document.getElementById("prediction").innerText = d.prediction;
-      document.getElementById("strategy").innerText = d.strategy;
-      document.getElementById("outcome").innerText = d.outcome;
-      document.getElementById("wins").innerText = d.wins;
-      document.getElementById("losses").innerText = d.losses;
-      document.getElementById("accuracy").innerText = d.accuracy;
-      document.getElementById("hot").innerText = d.hot.join(", ");
-      document.getElementById("cold").innerText = d.cold.join(", ");
-
-      let tbody = "";
-      d.last10.forEach(r=>{
-        tbody += `<tr><td>${r.Issue.slice(-5)}</td><td>${r.Number}</td><td>${r.BigSmall}</td></tr>`;
-      });
-      document.getElementById("last10").innerHTML = tbody;
+      try {
+        let res = await fetch("/data");
+        let d = await res.json();
+        if(d.error){
+          document.getElementById("issue").innerText = "Error";
+          return;
+        }
+        document.getElementById("issue").innerText = d.issue;
+        document.getElementById("number").innerText = d.number;
+        document.getElementById("result").innerText = d.result;
+        document.getElementById("color").innerText = d.color;
+        document.getElementById("prediction").innerText = d.prediction;
+        document.getElementById("strategy").innerText = d.strategy;
+        document.getElementById("outcome").innerText = d.outcome;
+        document.getElementById("wins").innerText = d.wins;
+        document.getElementById("losses").innerText = d.losses;
+        document.getElementById("accuracy").innerText = d.accuracy;
+        document.getElementById("hot").innerText = d.hot.join(", ");
+        document.getElementById("cold").innerText = d.cold.join(", ");
+        let tbody = "";
+        d.last10.forEach(r=>{
+          tbody += `<tr><td>${r.Issue.slice(-5)}</td><td>${r.Number}</td><td>${r.BigSmall}</td></tr>`;
+        });
+        document.getElementById("last10").innerHTML = tbody;
+      } catch(e){
+        console.error("Error fetching /data", e);
+      }
     }
     setInterval(refreshData, 5000);
     refreshData();
