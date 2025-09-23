@@ -25,12 +25,10 @@ class WinGoPredictor:
         self.strategy = "Follow-Trend"
 
     def fetch_data(self):
-        """Fetch API safely with headers and error handling"""
+        """Fetch live WinGo game data from API"""
         try:
             params = {"pageNo": 1, "pageSize": PAGE_SIZE}
-            headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; WinGoPredict/1.0; +https://railway.app)"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (WinGoPredict/1.0)"}
             resp = requests.get(URL, params=params, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
@@ -40,23 +38,25 @@ class WinGoPredictor:
                 return pd.DataFrame([])
 
             return pd.DataFrame([{
-                "Issue": d['issueNumber'],
-                "Number": int(d['number']),
-                "Color": d['color'],
-                "BigSmall": "Big" if int(d['number']) >= 5 else "Small"
-            } for d in data['data']['list']])
+                "Issue": d["issueNumber"],
+                "Number": int(d["number"]),
+                "Color": d["color"],
+                "BigSmall": "Big" if int(d["number"]) >= 5 else "Small"
+            } for d in data["data"]["list"]])
 
         except Exception as e:
             print("❌ Error fetching API:", e)
             return pd.DataFrame([])
 
     def analyze(self, df):
+        """Find Hot & Cold numbers by frequency"""
         freq = Counter(df["Number"])
         hot = [num for num, _ in freq.most_common(3)]
         cold = [num for num, _ in freq.most_common()[-3:]]
         return hot, cold
 
     def follow_trend(self, df):
+        """Follow trend logic for prediction"""
         last = df["BigSmall"].values[:10]
         big_count = list(last).count("Big")
         small_count = list(last).count("Small")
@@ -67,6 +67,7 @@ class WinGoPredictor:
         return "Big" if big_count > small_count else "Small"
 
     def evaluate(self, df):
+        """Evaluate last draw and update prediction"""
         if df.empty:
             return "-----", "-", "-", "-", "No Data"
 
@@ -76,6 +77,7 @@ class WinGoPredictor:
         color = df.iloc[0]["Color"]
         outcome = ""
 
+        # Only check if new issue appeared
         if self.last_issue != latest_issue:
             if self.current_prediction is not None:
                 self.total_predictions += 1
@@ -92,6 +94,7 @@ class WinGoPredictor:
 
             self.last_issue = latest_issue
             base = self.follow_trend(df)
+            # Loss protection: flip if 2 losses streak
             if self.loss_streak >= 2:
                 self.current_prediction = "Big" if base == "Small" else "Small"
                 self.strategy = f"Switched (losses={self.loss_streak})"
@@ -139,6 +142,5 @@ def data():
     })
 
 
-# ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
