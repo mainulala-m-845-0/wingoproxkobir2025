@@ -25,14 +25,30 @@ class WinGoPredictor:
         self.strategy = "Follow-Trend"
 
     def fetch_data(self):
-        params = {"pageNo": 1, "pageSize": PAGE_SIZE}
-        resp = requests.get(URL, params=params).json()
-        return pd.DataFrame([{
-            "Issue": d['issueNumber'],
-            "Number": int(d['number']),
-            "Color": d['color'],
-            "BigSmall": "Big" if int(d['number']) >= 5 else "Small"
-        } for d in resp['data']['list']])
+        """Fetch API safely with headers and error handling"""
+        try:
+            params = {"pageNo": 1, "pageSize": PAGE_SIZE}
+            headers = {
+                "User-Agent": "Mozilla/5.0 (compatible; WinGoPredict/1.0; +https://railway.app)"
+            }
+            resp = requests.get(URL, params=params, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if "data" not in data or "list" not in data["data"]:
+                print("⚠️ Bad API Response:", data)
+                return pd.DataFrame([])
+
+            return pd.DataFrame([{
+                "Issue": d['issueNumber'],
+                "Number": int(d['number']),
+                "Color": d['color'],
+                "BigSmall": "Big" if int(d['number']) >= 5 else "Small"
+            } for d in data['data']['list']])
+
+        except Exception as e:
+            print("❌ Error fetching API:", e)
+            return pd.DataFrame([])
 
     def analyze(self, df):
         freq = Counter(df["Number"])
@@ -51,6 +67,9 @@ class WinGoPredictor:
         return "Big" if big_count > small_count else "Small"
 
     def evaluate(self, df):
+        if df.empty:
+            return "-----", "-", "-", "-", "No Data"
+
         latest_issue = df.iloc[0]["Issue"]
         result = df.iloc[0]["BigSmall"]
         number = df.iloc[0]["Number"]
@@ -70,11 +89,10 @@ class WinGoPredictor:
                     outcome = "LOSS ❌"
             else:
                 outcome = "First Run"
-            self.last_issue = latest_issue
 
+            self.last_issue = latest_issue
             base = self.follow_trend(df)
             if self.loss_streak >= 2:
-                # Switch after 2 losses
                 self.current_prediction = "Big" if base == "Small" else "Small"
                 self.strategy = f"Switched (losses={self.loss_streak})"
             else:
@@ -82,6 +100,7 @@ class WinGoPredictor:
                 self.strategy = "Follow-Trend"
 
         return latest_issue[-5:], number, result, color, outcome
+
 
 predictor = WinGoPredictor()
 
@@ -95,9 +114,11 @@ def index():
 @app.route("/data")
 def data():
     df = predictor.fetch_data()
+    if df.empty:
+        return jsonify({"error": "No data fetched from API"}), 500
+
     hot, cold = predictor.analyze(df)
     issue, number, result, color, outcome = predictor.evaluate(df)
-
     acc = (predictor.total_wins / predictor.total_predictions * 100) if predictor.total_predictions > 0 else 0
 
     return jsonify({
@@ -117,6 +138,7 @@ def data():
         "last10": df.head(10).to_dict(orient="records")
     })
 
+
 # ==============================
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
