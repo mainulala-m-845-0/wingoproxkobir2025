@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🎲 WinGo Predictor Dashboard</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial; background: #121212; color: #eee; text-align: center; }
+    .card { background:#1f1f1f; margin:20px auto; padding:20px; border-radius:10px; width:500px; box-shadow:0 0 10px #000;}
+    table { margin:0 auto; border-collapse: collapse; width:80%;}
+    th,td{ border:1px solid #555; padding:6px;}
+  </style>
+</head>
+<body>
+  <h1>🎲 WinGo Predictor Dashboard</h1>
+  <div class="card">
+    <h2>Period <span id="issue"></span></h2>
+    <p>Last Number: <b id="number"></b> (<span id="result"></span>) - <span id="color"></span></p>
+    <p>📌 Next Prediction: ⭐ <b id="prediction"></b> ⭐</p>
+    <p>Strategy: <span id="strategy"></span></p>
+    <p>Outcome: <span id="outcome"></span></p>
+    <p>🔥 Hot: <span id="hot"></span> | ❄️ Cold: <span id="cold"></span></p>
+    <p>✅ Wins: <span id="wins"></span> | ❌ Losses: <span id="losses"></span> | 📈 Accuracy: <span id="accuracy"></span>%</p>
+  </div>
+
+  <div class="card">
+    <h3>📊 Last 10 Results</h3>
+    <table>
+      <thead><tr><th>Period</th><th>Number</th><th>Big/Small</th></tr></thead>
+      <tbody id="last10"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function refreshData(){
+      let res = await fetch("/data");
+      let d = await res.json();
+      document.getElementById("issue").innerText = d.issue;
+      document.getElementById("number").innerText = d.number;
+      document.getElementById("result").innerText = d.result;
+      document.getElementById("color").innerText = d.color;
+      document.getElementById("prediction").innerText = d.prediction;
+      document.getElementById("strategy").innerText = d.strategy;
+      document.getElementById("outcome").innerText = d.outcome;
+      document.getElementById("wins").innerText = d.wins;
+      document.getElementById("losses").innerText = d.losses;
+      document.getElementById("accuracy").innerText = d.accuracy;
+      document.getElementById("hot").innerText = d.hot.join(", ");
+      document.getElementById("cold").innerText = d.cold.join(", ");
+
+      let tbody = "";
+      d.last10.forEach(r=>{
+        tbody += `<tr><td>${r.Issue.slice(-5)}</td><td>${r.Number}</td><td>${r.BigSmall}</td></tr>`;
+      });
+      document.getElementById("last10").innerHTML = tbody;
+    }
+    setInterval(refreshData, 5000);
+    refreshData();
+  </script>
+</body>
+</html>
