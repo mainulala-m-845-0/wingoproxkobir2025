@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>📜 Prediction History</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial; background: #1a1a1a; color: #eee; text-align: center; }
+    .card { background:#222; margin:20px auto; padding:20px; border-radius:10px; width:80%; box-shadow:0 0 10px #000;}
+    table { margin:0 auto; border-collapse: collapse; width:100%;}
+    th,td{ border:1px solid #555; padding:6px;}
+    th{ background: #333; }
+    tr:nth-child(even){ background:#2a2a2a; }
+  </style>
+</head>
+<body>
+  <h1>📜 Prediction History</h1>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Issue</th>
+          <th>Number</th>
+          <th>Big/Small</th>
+          <th>Color</th>
+          <th>Prediction</th>
+          <th>Strategy</th>
+          <th>Outcome</th>
+          <th>Timestamp (UTC)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row['id'] }}</td>
+          <td>{{ row['issue'][-5:] }}</td>
+          <td>{{ row['number'] }}</td>
+          <td>{{ row['bigsmall'] }}</td>
+          <td>{{ row['color'] }}</td>
+          <td>{{ row['prediction'] }}</td>
+          <td>{{ row['strategy'] }}</td>
+          <td>{{ row['outcome'] }}</td>
+          <td>{{ row['timestamp'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:20px;"><a href="/">⬅️ Back to Dashboard</a></p>
+</body>
+</html>
