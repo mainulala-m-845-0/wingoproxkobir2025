@@ -4,29 +4,36 @@
   <title>📜 Prediction History</title>
   <meta charset="utf-8">
   <style>
-    body { font-family: Arial; background: #1a1a1a; color: #eee; text-align: center; }
-    .card { background:#222; margin:20px auto; padding:20px; border-radius:10px; width:80%; box-shadow:0 0 10px #000;}
-    table { margin:0 auto; border-collapse: collapse; width:100%;}
-    th,td{ border:1px solid #555; padding:6px;}
-    th{ background: #333; }
+    body { font-family: Arial; background: #1a1a1a; color: #eee; text-align: center; margin:0; padding:0; }
+    .card { background:#222; margin:20px auto; padding:20px; border-radius:10px; width:90%; max-width:1200px; box-shadow:0 0 10px #000; }
+    table { border-collapse: collapse; width:100%; }
+    th,td{ border:1px solid #555; padding:6px; text-align: center; }
+    th{ background: #333; color: #ffcc00; }
     tr:nth-child(even){ background:#2a2a2a; }
+    .summary { margin: 20px auto; padding:15px; font-size:1.1rem; background:#111; border-radius:8px; }
+    .win-text { color:#4CAF50; font-weight:bold; }
+    .loss-text { color:#f44336; font-weight:bold; }
+    .acc-text { color:#29b6f6; font-weight:bold; }
+    .btn { display:inline-block; margin:10px; padding:10px 15px; background:#ffcc00; color:#111; font-weight:bold; border-radius:6px; text-decoration:none; }
   </style>
 </head>
 <body>
   <h1>📜 Prediction History</h1>
+
+  <div class="card summary">
+    🟢 Wins: <span class="win-text">{{ wins }}</span> |
+    🔴 Losses: <span class="loss-text">{{ losses }}</span> |
+    📈 Accuracy: <span class="acc-text">{{ accuracy }}%</span> <br>
+    <a href="/history/export" class="btn">⬇️ Export CSV</a>
+    <a href="/" class="btn">⬅️ Back to Dashboard</a>
+  </div>
+
   <div class="card">
     <table>
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Issue</th>
-          <th>Number</th>
-          <th>Big/Small</th>
-          <th>Color</th>
-          <th>Prediction</th>
-          <th>Strategy</th>
-          <th>Outcome</th>
-          <th>Timestamp (UTC)</th>
+          <th>ID</th><th>Issue</th><th>Number</th><th>Big/Small</th><th>Color</th>
+          <th>Prediction</th><th>Strategy</th><th>Outcome</th><th>Timestamp</th>
         </tr>
       </thead>
       <tbody>
@@ -37,15 +44,16 @@
           <td>{{ row['number'] }}</td>
           <td>{{ row['bigsmall'] }}</td>
           <td>{{ row['color'] }}</td>
-          <td>{{ row['prediction'] }}</td>
+          <td class="{% if 'WIN' in row['outcome'] %}win-text{% else %}loss-text{% endif %}">
+            {{ row['prediction'] }}
+          </td>
           <td>{{ row['strategy'] }}</td>
-          <td>{{ row['outcome'] }}</td>
+          <td>{% if 'WIN' in row['outcome'] %}✅ WIN{% else %}❌ LOSS{% endif %}</td>
           <td>{{ row['timestamp'] }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <p style="margin-top:20px;"><a href="/">⬅️ Back to Dashboard</a></p>
 </body>
 </html>
