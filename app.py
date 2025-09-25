@@ -4,6 +4,7 @@ from collections import Counter
 from flask import Flask, render_template, jsonify, send_file
 import logging, sqlite3, csv, os
 from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # ==============================
 # CONFIG
@@ -11,6 +12,7 @@ from datetime import datetime
 URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 PAGE_SIZE = 20
 DB_FILE = "results.db"
+ARCHIVE_FOLDER = "archives"  # optional folder for daily exports
 
 app = Flask(__name__)
 
@@ -52,6 +54,27 @@ def save_prediction(issue, number, bigsmall, color, prediction, strategy, outcom
     conn.close()
 
 # ==============================
+# Archive as CSV (optional)
+# ==============================
+def export_history_csv(filename):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM predictions ORDER BY id ASC")
+    rows = cur.fetchall()
+    headers = [d[0] for d in cur.description]
+    conn.close()
+
+    if not os.path.exists(ARCHIVE_FOLDER):
+        os.makedirs(ARCHIVE_FOLDER)
+
+    filepath = os.path.join(ARCHIVE_FOLDER, filename)
+    with open(filepath, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+    logger.info(f"📁 History exported to {filepath}")
+
+# ==============================
 # Predictor Logic
 # ==============================
 class WinGoPredictor:
@@ -71,11 +94,9 @@ class WinGoPredictor:
             resp = requests.get(URL, params=params, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
-
             if "data" not in data or "list" not in data["data"]:
                 logger.warning("⚠️ Bad API Response: %s", data)
                 return pd.DataFrame([])
-
             return pd.DataFrame([{
                 "Issue": str(d["issueNumber"]),
                 "Number": int(d["number"]),
@@ -136,7 +157,6 @@ class WinGoPredictor:
 
             hot = self.analyze(df)
             twoNums = ", ".join(map(str, hot[:2])) if hot else str(number)
-
             save_prediction(
                 latest_issue,
                 number,
@@ -151,6 +171,36 @@ class WinGoPredictor:
         return latest_issue[-5:], number, result, color, outcome, hot
 
 predictor = WinGoPredictor()
+
+# ==============================
+# Daily Reset (with optional archive)
+# ==============================
+def reset_daily():
+    # Optional: export previous day before wiping
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    export_history_csv(f"history_{today_str}.csv")
+
+    # Reset DB
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM predictions")
+    conn.commit()
+    conn.close()
+
+    # Reset in-memory stats
+    predictor.loss_streak = 0
+    predictor.total_predictions = 0
+    predictor.total_wins = 0
+    predictor.total_losses = 0
+    predictor.last_issue = None
+    predictor.current_prediction = None
+    predictor.strategy = "Follow-Trend"
+
+    logger.info("🔄 Daily reset complete (with archive saved)")
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(reset_daily, 'cron', hour=0, minute=0)   # reset at midnight UTC
+scheduler.start()
 
 # ==============================
 # Routes
@@ -168,18 +218,36 @@ def data():
     issue, number, result, color, outcome, hot = predictor.evaluate(df)
     acc = (predictor.total_wins / predictor.total_predictions * 100) if predictor.total_predictions > 0 else 0
 
+    try:
+        next_issue = str(int(predictor.last_issue) + 1)
+    except:
+        next_issue = "N/A"
+
+    last10 = []
+    for _, row in df.head(10).iterrows():
+        last10.append({
+            "Issue": str(row["Issue"]),
+            "Number": int(row["Number"]),
+            "BigSmall": str(row["BigSmall"]),
+            "Color": str(row["Color"]),
+            "Outcome": "WIN" if predictor.current_prediction == row["BigSmall"] else "LOSS"
+        })
+
     return jsonify({
-        "issue": str(issue),
-        "number": int(number),
-        "result": str(result),
-        "color": str(color),
-        "prediction": str(predictor.current_prediction),
-        "outcome": str(outcome),
-        "wins": int(predictor.total_wins),
-        "losses": int(predictor.total_losses),
-        "total": int(predictor.total_predictions),
+        "issue": issue,
+        "next_issue": next_issue,
+        "number": number,
+        "result": result,
+        "color": color,
+        "prediction": predictor.current_prediction,
+        "strategy": predictor.strategy,
+        "outcome": outcome,
+        "wins": predictor.total_wins,
+        "losses": predictor.total_losses,
+        "total": predictor.total_predictions,
         "accuracy": round(float(acc), 1),
-        "hot": hot
+        "hot": hot,
+        "last10": last10
     })
 
 @app.route("/history/view")
@@ -197,26 +265,15 @@ def history_view():
 
     total = wins + losses
     accuracy = round((wins / total) * 100, 1) if total > 0 else 0
-
     conn.close()
+
     return render_template("history.html", rows=rows, wins=wins, losses=losses, accuracy=accuracy)
 
-# ✅ CSV Export Route
 @app.route("/history/export")
 def history_export():
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM predictions ORDER BY id DESC")
-    rows = cur.fetchall()
-    conn.close()
-
     filename = "prediction_history.csv"
-    with open(filename, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow([d[0] for d in cur.description])  # headers
-        writer.writerows(rows)
-
-    return send_file(filename, mimetype="text/csv", as_attachment=True)
+    export_history_csv(filename)
+    return send_file(os.path.join(ARCHIVE_FOLDER, filename), mimetype="text/csv", as_attachment=True)
 
 # ==============================
 if __name__ == "__main__":
