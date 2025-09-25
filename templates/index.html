@@ -3,229 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎲 WinGo Predictor Dashboard</title>
-
+  <title>🎲 WinGo Premium Predictor</title>
   <style>
-    :root {
-      /* DARK THEME */
-      --bg: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-      --card-bg: #1f1f1f;
-      --text: #f5f5f5;
-      --header-bg: #111;
-      --footer-bg: #1f1f1f;
-      --table-header: #333;
-      --accent: #ffcc00;
-    }
-    body.light {
-      /* LIGHT THEME */
-      --bg: #f0f0f0;
-      --card-bg: #ffffff;
-      --text: #222;
-      --header-bg: #fff;
-      --footer-bg: #eee;
-      --table-header: #ddd;
-      --accent: #ff9800;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    body { 
+      font-family: 'Segoe UI', Tahoma, sans-serif;
       margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      text-align: center;
-      transition: all 0.3s ease;
+      background: linear-gradient(145deg,#0f2027,#203a43,#2c5364);
+      color: #eee;
     }
-
     header {
-      padding: 20px;
-      font-size: 1.6rem;
-      font-weight: bold;
-      background: var(--header-bg);
-      color: var(--text);
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      background:#111; padding:15px; text-align:center;
+      font-size:1.6rem; color:#ffcc00; font-weight:bold;
+      box-shadow:0 2px 8px rgba(0,0,0,0.6);
     }
-
-    .theme-toggle {
-      cursor: pointer;
-      background: var(--accent);
-      border: none;
-      color: #000;
-      border-radius: 20px;
-      padding: 8px 14px;
-      font-weight: bold;
+    .container{ max-width:1100px; margin:20px auto; padding:0 15px; }
+    .card{
+      background:#1c1c1c; border-radius:12px;
+      padding:25px; margin:20px 0; text-align:center;
+      box-shadow:0 5px 12px rgba(0,0,0,0.5);
+      animation: fadeIn 0.8s ease;
     }
-
-    .container {
-      max-width: 1100px;
-      margin: 20px auto;
-      padding: 0 10px;
+    h2{ margin:0 0 10px; color:#ffcc00; }
+    .prediction{
+      font-size:1.8rem; font-weight:bold; margin:15px 0;
+      text-shadow:0 0 12px #fff;
     }
-
-    .card {
-      background: var(--card-bg);
-      margin: 15px auto;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-    }
-
-    h2, h3 {
-      margin-top: 0;
-      color: var(--accent);
-    }
-
-    p {
-      margin: 6px 0;
-      font-size: 1.1rem;
-    }
-
-    .highlight {
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: var(--accent);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      overflow-x: auto;
-      font-size: 0.95rem;
-    }
-
-    th, td {
-      padding: 8px;
-      border: 1px solid #444;
-    }
-
-    th {
-      background: var(--table-header);
-      color: var(--accent);
-    }
-
-    tr:nth-child(even) {
-      background: rgba(255,255,255,0.05);
-    }
-
-    .win { color: #4CAF50; font-weight: bold; }
-    .loss { color: #f44336; font-weight: bold; }
-    .small { color: #ff7043; }
-    .big { color: #29b6f6; }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      header { font-size: 1.3rem; flex-direction: column; }
-      .container { padding: 0 5px; }
-      .card { padding: 15px; }
-      table { font-size: 0.85rem; }
-    }
-
-    footer {
-      padding: 15px;
-      background: var(--footer-bg);
-      font-size: 0.9rem;
-      color: #bbb;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    .stats{ margin-top:15px; font-size:1rem;}
+    .stats span{ margin:0 10px; font-weight:bold; }
+    .win{color:#4CAF50;} .loss{color:#f44336;} .acc{color:#29b6f6;}
+    table{ width:100%; border-collapse:collapse; margin-top:15px;}
+    th,td{ padding:10px; border:1px solid #444; text-align:center;}
+    th{ background:#222; color:#ffcc00;}
+    tr:nth-child(even){ background:#2a2a2a;}
+    tr.win-row { background:rgba(76,175,80,0.2)!important; }
+    tr.loss-row { background:rgba(244,67,54,0.2)!important; }
+    footer{ text-align:center; padding:15px; background:#111; color:#777; margin-top:30px; }
+    footer a{ color:#ffcc00; text-decoration:none;}
+    /* progress bar */
+    .progress-bar{ background:#333; border-radius:10px; height:12px; margin:20px auto 10px; overflow:hidden;}
+    .progress-fill{ height:100%; width:0%; background:linear-gradient(90deg,#ffcc00,#ff6600);
+      box-shadow:0 0 12px #ffcc00; transition: width 1s ease;}
+    @keyframes fadeIn {from{opacity:0;}to{opacity:1;}}
+    /* Confetti layer */
+    canvas#confetti{ position:fixed; pointer-events:none; top:0; left:0; width:100%; height:100%; }
   </style>
 </head>
 <body>
 
-  <header>
-    🎲 WinGo Predictor Dashboard
-    <button class="theme-toggle" onclick="toggleTheme()">🌙 / ☀️</button>
-  </header>
+  <header>🎲 WinGo Predictor Dashboard</header>
 
   <div class="container">
+
+    <!-- Premium Prediction Card -->
     <div class="card">
-      <h2>Period <span id="issue"></span></h2>
-      <p>Last Number: <span class="highlight" id="number"></span> 
-        (<span id="result"></span>) - <span id="color"></span>
-      </p>
-      <p>📌 Next Prediction: ⭐ <span class="highlight" id="prediction"></span> ⭐</p>
-      <p>Strategy: <span id="strategy"></span></p>
-      <p>Outcome: <span id="outcome"></span></p>
-      <p>🔥 Hot: <span id="hot"></span> | ❄️ Cold: <span id="cold"></span></p>
-      <p>
-        ✅ Wins: <span class="win" id="wins"></span> | 
-        ❌ Losses: <span class="loss" id="losses"></span> | 
-        📈 Accuracy: <span id="accuracy"></span>%
-      </p>
+      <h2>Period <span id="issue"></span> ➡️ Next <span id="nextIssue"></span></h2>
+      <div class="prediction" id="prediction">Loading...</div>
+      <div id="subPrediction">--</div>
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="accuracyLabel">Confidence: 0%</div>
+      <div class="stats">
+        <span class="win">✅ Wins: <span id="wins">0</span></span>
+        <span class="loss">❌ Losses: <span id="losses">0</span></span>
+        <span class="acc">📈 Accuracy: <span id="accuracy">0</span>%</span>
+      </div>
     </div>
 
+    <!-- Last 10 Results Table -->
     <div class="card">
-      <h3>📊 Last 10 Results</h3>
+      <h2>📊 Last 10 Results</h2>
       <table>
-        <thead>
-          <tr>
-            <th>Period</th>
-            <th>Number</th>
-            <th>Big/Small</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Period</th><th>Number</th><th>Big/Small</th><th>Outcome</th></tr></thead>
         <tbody id="last10"></tbody>
       </table>
     </div>
+
   </div>
 
   <footer>
-    © 2025 WinGo Predictor | 
-    <a href="/history/view">📜 History</a>
+    © 2025 WinGo Predictor | <a href="/history/view">📜 History</a>
   </footer>
 
-  <script>
-    function toggleTheme() {
-      document.body.classList.toggle("light");
-      localStorage.setItem("theme", 
-        document.body.classList.contains("light") ? "light" : "dark"
-      );
+  <!-- Confetti Effect -->
+  <canvas id="confetti"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.0/dist/confetti.browser.min.js"></script>
+  
+<script>
+let lastOutcome = "";
+
+async function refreshData(){
+  try {
+    let res = await fetch("/data");
+    let d = await res.json();
+    if(d.error){ document.getElementById("prediction").innerText="⚠️ API Error"; return;}
+
+    // Current and next periods
+    document.getElementById("issue").innerText = d.issue;
+    document.getElementById("nextIssue").innerText = d.next_issue;
+
+    // Prediction display
+    document.getElementById("prediction").innerText = `⭐ ${d.prediction} ${d.number} [${d.color}] ⭐`;
+
+    // 2-number hot picks suggestion
+    let twoNums = d.hot ? d.hot.slice(0,2).join(" & "): d.number;
+    document.getElementById("subPrediction").innerText = "Possible numbers: "+twoNums;
+
+    // Stats / Confidence
+    document.getElementById("progressFill").style.width = d.accuracy+"%";
+    document.getElementById("accuracyLabel").innerText = "Confidence: "+d.accuracy+"%";
+    document.getElementById("wins").innerText = d.wins;
+    document.getElementById("losses").innerText = d.losses;
+    document.getElementById("accuracy").innerText = d.accuracy;
+
+    // Last 10 table
+    let tbody="";
+    d.last10.forEach(r=>{
+      let rowClass = r.Outcome==="WIN"?"win-row":"loss-row";
+      tbody += `<tr class="${rowClass}">
+                  <td>${r.Issue.slice(-5)}</td>
+                  <td>${r.Number}</td>
+                  <td>${r.BigSmall}</td>
+                  <td>${r.Outcome}</td>
+                </tr>`;
+    });
+    document.getElementById("last10").innerHTML = tbody;
+
+    // 🎉 Confetti trigger for new WIN event
+    if(d.outcome!==lastOutcome && d.outcome.includes("WIN")){
+        confetti({ particleCount: 100, spread: 70, origin:{ y:0.6 } });
     }
+    lastOutcome=d.outcome;
 
-    // Persist theme choice
-    if(localStorage.getItem("theme") === "light") {
-      document.body.classList.add("light");
-    }
-
-    async function refreshData(){
-      try {
-        let res = await fetch("/data");
-        let d = await res.json();
-        if(d.error){ document.getElementById("issue").innerText = "Error"; return; }
-
-        document.getElementById("issue").innerText = d.issue;
-        document.getElementById("number").innerText = d.number;
-        document.getElementById("result").innerText = d.result;
-        document.getElementById("color").innerText = d.color;
-        document.getElementById("prediction").innerText = d.prediction;
-        document.getElementById("strategy").innerText = d.strategy;
-        document.getElementById("outcome").innerText = d.outcome;
-        document.getElementById("wins").innerText = d.wins;
-        document.getElementById("losses").innerText = d.losses;
-        document.getElementById("accuracy").innerText = d.accuracy;
-        document.getElementById("hot").innerText = d.hot.join(", ");
-        document.getElementById("cold").innerText = d.cold.join(", ");
-
-        let tbody = "";
-        d.last10.forEach(r=>{
-          tbody += `<tr>
-                      <td>${r.Issue.slice(-5)}</td>
-                      <td>${r.Number}</td>
-                      <td class="${r.BigSmall.toLowerCase()}">${r.BigSmall}</td>
-                    </tr>`;
-        });
-        document.getElementById("last10").innerHTML = tbody;
-      } catch(e){
-        console.error("Error fetching /data", e);
-      }
-    }
-    setInterval(refreshData, 5000);
-    refreshData();
-  </script>
+  } catch(e){ console.error("Error fetching /data", e); }
+}
+setInterval(refreshData,5000);
+refreshData();
+</script>
 
 </body>
 </html>
