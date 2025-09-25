@@ -275,6 +275,24 @@ def history_export():
     export_history_csv(filename)
     return send_file(os.path.join(ARCHIVE_FOLDER, filename), mimetype="text/csv", as_attachment=True)
 
+from flask import send_from_directory
+
+@app.route("/archives")
+def list_archives():
+    """List available archived CSV files in /archives folder"""
+    if not os.path.exists(ARCHIVE_FOLDER):
+        return "<h3>No archives found yet.</h3>"
+    files = os.listdir(ARCHIVE_FOLDER)
+    links = "<h2>📂 Archived CSVs</h2><ul>"
+    for f in sorted(files):
+        links += f'<li><a href="/archives/{f}">{f}</a></li>'
+    links += "</ul><a href='/history/view'>⬅️ Back</a>"
+    return links
+
+@app.route("/archives/<path:filename>")
+def download_archive(filename):
+    """Download a specific archived CSV"""
+    return send_from_directory(ARCHIVE_FOLDER, filename, as_attachment=True)
 # ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
