@@ -148,7 +148,7 @@ class WinGoPredictor:
 
             self.last_issue = latest_issue
             base = self.follow_trend(df)
-            if self.loss_streak >= 3:
+            if self.loss_streak >= 2:
                 self.current_prediction = "Big" if base == "Small" else "Small"
                 self.strategy = f"Switched (losses={self.loss_streak})"
             else:
