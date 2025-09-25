@@ -1,112 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎲 WinGo Premium Predictor</title>
-
-<style>
-  body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    margin: 0;
-    background: radial-gradient(circle at top, #0f2027, #203a43, #2c5364);
-    color: #eee;
-  }
-  header {
-    background: #111;
-    padding: 20px;
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: #ffcc00;
-    text-align: center;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.7);
-  }
-  .container {
-    max-width: 1100px;
-    margin: 25px auto;
-    padding: 0 15px;
-  }
-  .card {
-    background: #1c1c1c;
-    border-radius: 15px;
-    padding: 30px;
-    margin: 20px 0;
-    text-align: center;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    animation: fadeInUp 0.7s ease;
-  }
-  h2 {
-    color: #ffcc00;
-    margin-bottom: 15px;
-    text-shadow: 0 0 8px #ffcc00;
-  }
-  .period {
-    font-size: 1.2rem;
-    margin: 10px 0;
-    color: #bbb;
-  }
-  .prediction {
-    font-size: 2rem;
-    font-weight: bold;
-    margin: 20px 0;
-    text-shadow: 0 0 12px #fff, 0 0 25px rgba(255,255,255,0.6);
-  }
-  .prediction span {
-    color: #ffcc00;
-  }
-  .confidence-bar {
-    background: #333;
-    border-radius: 8px;
-    height: 10px;
-    margin: 20px auto 10px;
-    overflow: hidden;
-    width: 80%;
-  }
-  .confidence-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #ffcc00, #ff6600);
-    box-shadow: 0 0 10px #ffcc00;
-    transition: width 0.8s ease;
-  }
-  .stats {
-    margin-top: 20px;
-    font-size: 1.05rem;
-  }
-  .stats span { margin: 0 8px; font-weight: bold; }
-  .win { color: #4CAF50;}
-  .loss { color: #f44336;}
-  .acc { color: #29b6f6;}
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    font-size: 0.95rem;
-  }
-  th, td {
-    padding: 10px;
-    border: 1px solid #444;
-    text-align: center;
-  }
-  th { background: #222; color: #ffcc00;}
-  tr:nth-child(even) { background: #2a2a2a;}
-  tr.win-row { background: rgba(76,175,80,0.2)!important;}
-  tr.loss-row { background: rgba(244,67,54,0.2)!important;}
-  footer {
-    text-align: center;
-    padding: 15px;
-    background: #111;
-    color: #777;
-    margin-top: 30px;
-    font-size: 0.9rem;
-  }
-  footer a { color: #ffcc00; text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
-  @keyframes fadeInUp {
-    from { transform: translateY(15px); opacity:0; }
-    to { transform: translateY(0); opacity:1;}
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎲 WinGo Premium Predictor</title>
+  <style>
+    body { 
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      margin: 0;
+      background: radial-gradient(circle at top,#0f2027,#203a43,#2c5364);
+      color: #eee;
+    }
+    header {
+      background:#111; padding:15px; text-align:center;
+      font-size:1.7rem; color:#ffcc00; font-weight:bold;
+      box-shadow:0 3px 12px rgba(0,0,0,0.6);
+    }
+    .container{ max-width:1100px; margin:25px auto; padding:0 15px;}
+    .card{
+      background:#1c1c1c; border-radius:15px;
+      padding:30px; margin:20px 0; text-align:center;
+      box-shadow:0 5px 15px rgba(0,0,0,0.5);
+    }
+    h2{ color:#ffcc00; margin-bottom:20px; }
+    .period {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      font-weight: bold;
+      color: #29b6f6;
+    }
+    .prediction {
+      font-size: 2rem;
+      font-weight: bold;
+      text-shadow: 0 0 15px #fff,0 0 30px rgba(255,255,255,0.6);
+      margin: 15px 0;
+    }
+    .prediction span { color:#ffcc00; }
+    .sub { font-size:1.1rem; margin-bottom:20px; color:#ff9800; }
+    .confidence-bar{ background:#333; border-radius:8px; height:10px;
+      margin:20px auto 10px; overflow:hidden; width:80%;}
+    .confidence-fill{ height:100%; width:0%; 
+      background:linear-gradient(90deg,#ffcc00,#ff6600);
+      box-shadow:0 0 10px #ffcc00; transition: width 0.8s ease;}
+    .stats{ margin-top:20px; font-size:1rem;}
+    .stats span{ margin:0 8px; font-weight:bold; }
+    .win{color:#4CAF50;} .loss{color:#f44336;} .acc{color:#29b6f6;}
+    table{ width:100%; border-collapse:collapse; margin-top:20px; font-size:0.95rem;}
+    th,td{ padding:10px; border:1px solid #444; text-align:center;}
+    th{ background:#222; color:#ffcc00;}
+    tr:nth-child(even){ background:#2a2a2a;}
+    tr.win-row{ background:rgba(76,175,80,0.2)!important;}
+    tr.loss-row{ background:rgba(244,67,54,0.2)!important;}
+    footer{ text-align:center; padding:15px; background:#111; color:#777; margin-top:30px; font-size:0.9rem;}
+    footer a{ color:#ffcc00; text-decoration:none;}
+    canvas#confetti{ position:fixed; pointer-events:none; top:0; left:0; width:100%; height:100%; }
+  </style>
 </head>
 <body>
 
@@ -114,12 +62,12 @@
 
 <div class="container">
 
-  <!-- Prediction Card -->
+  <!-- Premium Prediction Card -->
   <div class="card">
     <h2>Premium Prediction</h2>
-    <div class="period">Previous Period: <span id="issue"></span> ✅ | Next Period: <span id="nextIssue"></span> 🔮</div>
+    <div class="period">🔮 Current Period: <span id="nextIssue"></span></div>
     <div class="prediction" id="prediction">Loading...</div>
-    <div id="subPrediction">--</div>
+    <div id="subPrediction" class="sub">--</div>
     <div class="confidence-bar"><div id="confidenceFill" class="confidence-fill"></div></div>
     <div id="accuracyLabel">Confidence: 0%</div>
     <div class="stats">
@@ -144,23 +92,24 @@
   © 2025 WinGo Predictor | <a href="/history/view">📜 History</a>
 </footer>
 
+<canvas id="confetti"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.0/dist/confetti.browser.min.js"></script>
+
 <script>
 let lastOutcome="";
-
 async function refreshData(){
   try {
     let res = await fetch("/data");
     let d = await res.json();
     if(d.error){ document.getElementById("prediction").innerText="⚠️ API Error"; return; }
 
-    // Period labels
-    document.getElementById("issue").innerText = d.issue;
+    // Only show Next (Current) Period
     document.getElementById("nextIssue").innerText = d.next_issue;
 
-    // Prediction
+    // Prediction text
     document.getElementById("prediction").innerHTML = `⭐ <span>${d.prediction}</span> ${d.number} [${d.color}] ⭐`;
 
-    // 2-number suggestions
+    // 2-number suggestion
     let twoNums = d.hot ? d.hot.slice(0,2).join(" & "): d.number;
     document.getElementById("subPrediction").innerText = "Next possible numbers: "+twoNums;
 
@@ -171,10 +120,10 @@ async function refreshData(){
     document.getElementById("losses").innerText = d.losses;
     document.getElementById("accuracy").innerText = d.accuracy;
 
-    // Last10
+    // Last 10 results
     let tbody="";
     d.last10.forEach(r=>{
-      let rowClass = r.Outcome==="WIN" ? "win-row" : "loss-row";
+      let rowClass = r.Outcome==="WIN"?"win-row":"loss-row";
       tbody += `<tr class="${rowClass}">
                   <td>${r.Issue.slice(-5)}</td>
                   <td>${r.Number}</td>
@@ -183,6 +132,12 @@ async function refreshData(){
                 </tr>`;
     });
     document.getElementById("last10").innerHTML = tbody;
+
+    // Confetti on new WIN
+    if(d.outcome!==lastOutcome && d.outcome.includes("WIN")){
+        confetti({ particleCount:100, spread:70, origin:{ y:0.6 }});
+    }
+    lastOutcome=d.outcome;
 
   } catch(e){ console.error("Error fetching /data",e);}
 }
