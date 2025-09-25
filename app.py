@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 from collections import Counter
-from flask import Flask, render_template, jsonify, send_file
+from flask import Flask, render_template, jsonify, send_file, send_from_directory
 import logging, sqlite3, csv, os
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 PAGE_SIZE = 20
 DB_FILE = "results.db"
-ARCHIVE_FOLDER = "archives"  # optional folder for daily exports
+ARCHIVE_FOLDER = "archives"
 
 app = Flask(__name__)
 
@@ -54,7 +54,7 @@ def save_prediction(issue, number, bigsmall, color, prediction, strategy, outcom
     conn.close()
 
 # ==============================
-# Archive as CSV (optional)
+# Archive CSV
 # ==============================
 def export_history_csv(filename):
     conn = sqlite3.connect(DB_FILE)
@@ -127,9 +127,9 @@ class WinGoPredictor:
             return "-----", "-", "-", "-", "No Data", []
 
         latest_issue = str(df.iloc[0]["Issue"])
-        result = str(df.iloc[0]["BigSmall"])
-        number = int(df.iloc[0]["Number"])
-        color = str(df.iloc[0]["Color"])
+        result = str(df.iloc[0]["BigSmall"])    # Actual
+        number = int(df.iloc[0]["Number"])      # Actual number
+        color = str(df.iloc[0]["Color"])        # Actual color
         outcome = ""
 
         if self.last_issue != latest_issue:
@@ -156,13 +156,17 @@ class WinGoPredictor:
                 self.strategy = "Follow-Trend"
 
             hot = self.analyze(df)
-            twoNums = ", ".join(map(str, hot[:2])) if hot else str(number)
+            twoNums = ", ".join(map(str, hot[:2])) if hot else "?"
+
+            # ✅ Save prediction separately, not mixing with actual result
+            prediction_display = f"{self.current_prediction} ({twoNums})"
+
             save_prediction(
                 latest_issue,
-                number,
-                result,
-                color,
-                f"{self.current_prediction} ({twoNums})",
+                number,             # Actual
+                result,             # Actual Big/Small
+                color,              # Actual color
+                prediction_display, # Our prediction
                 self.strategy,
                 outcome
             )
@@ -173,21 +177,18 @@ class WinGoPredictor:
 predictor = WinGoPredictor()
 
 # ==============================
-# Daily Reset (with optional archive)
+# Daily Reset Job
 # ==============================
 def reset_daily():
-    # Optional: export previous day before wiping
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    export_history_csv(f"history_{today_str}.csv")
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    export_history_csv(f"history_{today}.csv")
 
-    # Reset DB
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
     cur.execute("DELETE FROM predictions")
     conn.commit()
     conn.close()
 
-    # Reset in-memory stats
     predictor.loss_streak = 0
     predictor.total_predictions = 0
     predictor.total_wins = 0
@@ -199,7 +200,7 @@ def reset_daily():
     logger.info("🔄 Daily reset complete (with archive saved)")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(reset_daily, 'cron', hour=0, minute=0)   # reset at midnight UTC
+scheduler.add_job(reset_daily, 'cron', hour=0, minute=0)
 scheduler.start()
 
 # ==============================
@@ -275,11 +276,8 @@ def history_export():
     export_history_csv(filename)
     return send_file(os.path.join(ARCHIVE_FOLDER, filename), mimetype="text/csv", as_attachment=True)
 
-from flask import send_from_directory
-
 @app.route("/archives")
 def list_archives():
-    """List available archived CSV files in /archives folder"""
     if not os.path.exists(ARCHIVE_FOLDER):
         return "<h3>No archives found yet.</h3>"
     files = os.listdir(ARCHIVE_FOLDER)
@@ -291,8 +289,8 @@ def list_archives():
 
 @app.route("/archives/<path:filename>")
 def download_archive(filename):
-    """Download a specific archived CSV"""
     return send_from_directory(ARCHIVE_FOLDER, filename, as_attachment=True)
+
 # ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
